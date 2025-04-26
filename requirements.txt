@@ -2,3 +2,4 @@ Flask
 pdfplumber
 Werkzeug
 google-generativeai
+gunicorn
