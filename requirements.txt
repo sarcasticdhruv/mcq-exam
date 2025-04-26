@@ -1,0 +1,4 @@
+Flask
+pdfplumber
+Werkzeug
+google-generativeai
