@@ -75,7 +75,7 @@ def extract_mcqs_from_pdf(file_path):
             
             # Look for questions matching pattern: number followed by period/question mark and text
             question_pattern = r'(\d+)\.\s+(.*?)\s+(?:a\.|b\.|c\.|d\.)'
-            option_pattern = r'([a-d])\.\s+(.*?)(?=\s+[a-d]\.|Answer:|$)'
+            option_pattern = r'([a-d])\.\s+(.*?)(?=\s+[a-d]\.|(?:Correct\s+)?Answer:|$)'
             answer_pattern = r'(?:Correct\s+Answer|Answer):\s*(?:\()?([a-d])(?:\))?'
             justification_pattern = r'Justification:\s+(.*?)(?=\d+\.|$)'
             
