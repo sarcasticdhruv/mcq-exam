@@ -39,7 +39,16 @@ def enhance_mcq_extraction(text, raw_mcqs):
     {json.dumps(raw_mcqs, indent=2)}
     
     Please correct any errors and ensure all questions, options, correct answers and justifications are properly extracted.
-    Return the result as valid JSON.
+    Return the result as valid JSON in folloeing format:
+    [
+    "question_number": "1",
+    "question_text": "...",
+    "options": [ "a": "...", "b": "...", ... ],
+    "correct_answer": "b",
+    "justification": "Because..."
+  ...
+]
+    Ensure the JSON is well-formed and valid.
     """
     
     try:
@@ -105,7 +114,7 @@ def extract_mcqs_from_pdf(file_path):
 
 @app.route('/')
 def index():
-    return render_template('index.html', api_configured=(GEMINI_API_KEY != "AIzaSyC9PkLrGeeumDDqfEH65mq9k96HXPKrrbM"))
+    return render_template('index.html', api_configured=(GEMINI_API_KEY != ""))
 
 @app.route('/configure_api', methods=['POST'])
 def configure_api():
