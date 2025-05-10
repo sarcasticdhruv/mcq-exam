@@ -20,7 +20,7 @@ exams_db = {}
 results_db = {}
 
 # Set up Gemini API (you'll need to replace with your actual API key)
-GEMINI_API_KEY = ""
+GEMINI_API_KEY = "AIzaSyC9PkLrGeeumDDqfEH65mq9k96HXPKrrbM"
 genai.configure(api_key=GEMINI_API_KEY)
 
 def allowed_file(filename):
