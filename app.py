@@ -29,7 +29,7 @@ def allowed_file(filename):
 def enhance_mcq_extraction(text, raw_mcqs):
     """Use Gemini to verify and complete MCQs with answers and justifications"""
     model = genai.GenerativeModel('gemini-2.5-pro-preview-05-06')
-    
+
     prompt = f"""
 You are given a block of text containing multiple-choice questions. I have already extracted the questions and options, but the correct answers and justifications are missing or incomplete.
 
@@ -38,11 +38,11 @@ Please do the following:
 - Provide a brief justification for each answer.
 - Do not rewrite the questions or options.
 - Return your response **only** as a JSON array with the following fields per question:
-  - question_number (string)
-  - question_text (string)
-  - options (object with keys "a", "b", "c", "d")
-  - correct_answer (one of "a", "b", "c", or "d")
-  - justification (string)
+    - question_number (string)
+    - question_text (string)
+    - options (object with keys "a", "b", "c", "d")
+    - correct_answer (one of "a", "b", "c", or "d")
+    - justification (string)
 
 Respond ONLY with valid JSON. No explanation, no markdown, no prose.
 
@@ -90,7 +90,7 @@ def extract_mcqs_from_pdf(file_path):
                 text = page.extract_text()
                 if text:
                     full_text += text + "\n"
-        
+
         # Try to parse rough MCQ blocks using regex
         raw_mcqs = []
         questions = re.split(r'\n(?=\d{1,3}\.\s)', full_text)
@@ -141,43 +141,43 @@ def configure_api():
 def upload_file():
     if 'pdf_file' not in request.files:
         return redirect(request.url)
-    
+
     file = request.files['pdf_file']
-    
+
     if file.filename == '':
         return redirect(request.url)
-    
+
     if file and allowed_file(file.filename):
         # Generate unique ID for this exam
         exam_id = str(uuid.uuid4())
-        
+
         # Save the file
         filename = secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{exam_id}_{filename}")
         file.save(file_path)
-        
+
         # Process the PDF
         mcqs = extract_mcqs_from_pdf(file_path)
-        
+
         if not mcqs:
             return "No MCQs found in the uploaded PDF. Please check the format.", 400
-        
+
         # Store the MCQs in our "database"
         exams_db[exam_id] = {
             'title': request.form.get('exam_title', 'Untitled Exam'),
             'questions': mcqs,
             'file_path': file_path
         }
-        
+
         return redirect(url_for('exam_preview', exam_id=exam_id))
-    
+
     return "Invalid file type. Please upload a PDF.", 400
 
 @app.route('/exam/<exam_id>/preview')
 def exam_preview(exam_id):
     if exam_id not in exams_db:
         return "Exam not found", 404
-    
+
     exam = exams_db[exam_id]
     return render_template('exam_preview.html', exam=exam, exam_id=exam_id)
 
@@ -185,43 +185,43 @@ def exam_preview(exam_id):
 def start_exam(exam_id):
     if exam_id not in exams_db:
         return "Exam not found", 404
-    
+
     exam = exams_db[exam_id]
-    
+
     # Initialize session data for this exam
     session['current_exam'] = {
         'exam_id': exam_id,
         'answers': {},
         'start_time': None  # You could add timing functionality
     }
-    
+
     return render_template('take_exam.html', exam=exam, exam_id=exam_id)
 
 @app.route('/exam/<exam_id>/submit', methods=['POST'])
 def submit_exam(exam_id):
     if exam_id not in exams_db or 'current_exam' not in session:
         return "Exam not found or session expired", 404
-    
+
     # Get submitted answers
     answers = {}
     for key, value in request.form.items():
         if key.startswith('q_'):
             question_num = key.split('_')[1]
             answers[question_num] = value
-    
+
     # Calculate results
     exam = exams_db[exam_id]
     correct_count = 0
     results = []
-    
+
     for question in exam['questions']:
         q_num = question['question_number']
         user_answer = answers.get(q_num, '')
         is_correct = user_answer == question['correct_answer']
-        
+
         if is_correct:
             correct_count += 1
-        
+
         results.append({
             'question_number': q_num,
             'question_text': question['question_text'],
@@ -230,7 +230,7 @@ def submit_exam(exam_id):
             'is_correct': is_correct,
             'justification': question['justification']
         })
-    
+
     # Store results
     result_id = str(uuid.uuid4())
     results_db[result_id] = {
@@ -240,24 +240,24 @@ def submit_exam(exam_id):
         'percentage': round(correct_count / len(exam['questions']) * 100, 2),
         'details': results
     }
-    
+
     # Clear session
     session.pop('current_exam', None)
-    
+
     return redirect(url_for('show_results', result_id=result_id))
 
 @app.route('/results/<result_id>')
 def show_results(result_id):
     if result_id not in results_db:
         return "Results not found", 404
-    
+
     result = results_db[result_id]
     exam = exams_db[result['exam_id']]
-    
-    return render_template('results.html', 
-                          result=result, 
-                          exam=exam, 
-                          result_id=result_id)
+
+    return render_template('results.html',
+                           result=result,
+                           exam=exam,
+                           result_id=result_id)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
