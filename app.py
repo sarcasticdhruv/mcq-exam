@@ -27,48 +27,59 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 def enhance_mcq_extraction(text, raw_mcqs):
-    """Use Gemini to improve MCQ parsing or provide better justifications"""
+    """Use Gemini to verify and complete MCQs with answers and justifications"""
     model = genai.GenerativeModel('gemini-2.5-pro-preview-05-06')
     
     prompt = f"""
-    I need help extracting and organizing multiple-choice questions from this text:
-    
-    {text}
-    
-    I've already extracted some information but need verification:
-    {json.dumps(raw_mcqs, indent=2)}
-    
-    Please correct any errors and ensure all questions, options, correct answers and justifications are properly extracted.
-    Return the result as valid JSON in folloeing format:
-    [
-    "question_number": "1",
-    "question_text": "...",
-    "options": [ "a": "...", "b": "...", ... ],
-    "correct_answer": "b",
-    "justification": "Because..."
-  ...
-]
-    Ensure the JSON is well-formed and valid.
-    """
-    
+You are given a block of text containing multiple-choice questions. I have already extracted the questions and options, but the correct answers and justifications are missing or incomplete.
+
+Please do the following:
+- Match each question with its correct answer (only one correct choice per question).
+- Provide a brief justification for each answer.
+- Do not rewrite the questions or options.
+- Return your response **only** as a JSON array with the following fields per question:
+  - question_number (string)
+  - question_text (string)
+  - options (object with keys "a", "b", "c", "d")
+  - correct_answer (one of "a", "b", "c", or "d")
+  - justification (string)
+
+Respond ONLY with valid JSON. No explanation, no markdown, no prose.
+
+Here is the raw PDF text:
+{text}
+
+Here are the parsed MCQs:
+{json.dumps(raw_mcqs, indent=2)}
+"""
+
     try:
         response = model.generate_content(prompt)
-        # Parse the response and extract the formatted MCQs
         response_text = response.text
-        
-        # Find JSON content if surrounded by markdown code blocks or other text
-        json_match = re.search(r'```json\s*([\s\S]*?)\s*```|```\s*([\s\S]*?)\s*```|({[\s\S]*})', response_text)
-        if json_match:
-            json_content = next(group for group in json_match.groups() if group is not None)
-            improved_mcqs = json.loads(json_content)
-            return improved_mcqs
-        else:
-            # Try to parse the entire response as JSON
-            improved_mcqs = json.loads(response_text)
-            return improved_mcqs
+        print("GEMINI RAW RESPONSE:\n", response_text[:1000])  # Debug: print first 1000 characters
+
+        # Strip markdown code block markers or garbage
+        cleaned = re.sub(r'^```(json)?|```$', '', response_text.strip(), flags=re.MULTILINE).strip()
+
+        try:
+            improved_mcqs = json.loads(cleaned)
+        except json.JSONDecodeError:
+            print("JSON parsing failed, using raw_mcqs fallback.")
+            return raw_mcqs
+
+        # Ensure all questions include a valid answer and normalize it
+        for q in improved_mcqs:
+            if 'correct_answer' not in q or q['correct_answer'].lower() not in ('a', 'b', 'c', 'd'):
+                print(f"Warning: Question {q.get('question_number')} missing valid correct_answer.")
+                q['correct_answer'] = None
+            else:
+                q['correct_answer'] = q['correct_answer'].strip().lower()
+
+        return improved_mcqs
+
     except Exception as e:
         print(f"Error processing Gemini response: {e}")
-        return raw_mcqs  # Fall back to original extraction
+        return raw_mcqs  # Fallback
 
 def extract_mcqs_from_pdf(file_path):
     mcqs = []
