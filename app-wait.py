@@ -61,6 +61,73 @@ def enhance_mcq_extraction(text, raw_mcqs):
         print(f"Error processing Gemini response: {e}")
         return raw_mcqs  # Fall back to original extraction
 
+# def extract_mcqs_from_pdf(file_path):
+    """Extract MCQs from PDF using pattern recognition"""
+    mcqs = []
+    
+    try:
+        with pdfplumber.open(file_path) as pdf:
+            full_text = ""
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text:
+                    full_text += text + "\n"
+            
+            # Look for questions matching pattern: number followed by period/question mark and text
+            question_pattern = r'(\d+)\.\s+(.*?)\s+(?:a\.|b\.|c\.|d\.)'
+            option_pattern = r'([a-d])\.\s+(.*?)(?=\s+[a-d]\.|(?:Correct\s+)?Answer:|$)'
+            answer_pattern = r'(?:Correct\s+Answer|Answer):\s*(?:\()?([a-d])(?:\))?'
+            justification_pattern = r'Justification:\s+(.*?)(?=\d+\.|$)'
+            
+            # Find questions
+            questions = re.finditer(question_pattern, full_text, re.DOTALL)
+            
+            for q_match in questions:
+                q_num = q_match.group(1)
+                q_text = q_match.group(2).strip()
+                
+                # Extract full question text until the next question
+                q_end_pos = q_match.end()
+                next_q_match = re.search(r'\d+\.', full_text[q_end_pos:])
+                if next_q_match:
+                    q_full_text = full_text[q_match.start():q_end_pos + next_q_match.start()]
+                else:
+                    q_full_text = full_text[q_match.start():]
+                
+                # Extract options
+                options = {}
+                for opt_match in re.finditer(option_pattern, q_full_text, re.DOTALL):
+                    opt_letter = opt_match.group(1)
+                    opt_text = opt_match.group(2).strip()
+                    options[opt_letter] = opt_text
+                
+                # Extract answer
+                answer_match = re.search(answer_pattern, q_full_text)
+                correct_answer = answer_match.group(1) if answer_match else None
+                
+                # Extract justification
+                justification_match = re.search(justification_pattern, q_full_text, re.DOTALL)
+                justification = justification_match.group(1).strip() if justification_match else ""
+                
+                mcqs.append({
+                    'question_number': q_num,
+                    'question_text': q_text,
+                    'options': options,
+                    'correct_answer': correct_answer,
+                    'justification': justification
+                })
+        
+        # Use Gemini API to enhance the extraction if we have an API key and found some questions
+        if GEMINI_API_KEY != "YOUR_API_KEY" and mcqs:
+            enhanced_mcqs = enhance_mcq_extraction(full_text, mcqs)
+            if enhanced_mcqs:
+                return enhanced_mcqs
+                
+        return mcqs
+    except Exception as e:
+        print(f"Error extracting MCQs: {e}")
+        return []
+
 def extract_mcqs_from_pdf(file_path):
     mcqs = []
     try:
@@ -70,35 +137,34 @@ def extract_mcqs_from_pdf(file_path):
                 text = page.extract_text()
                 if text:
                     full_text += text + "\n"
-        
-        # Try to parse rough MCQ blocks using regex
-        raw_mcqs = []
-        questions = re.split(r'\n(?=\d{1,3}\.\s)', full_text)
-        for q_block in questions:
-            match = re.match(r'(\d{1,3})\.\s+(.*?)(?=\na\)|\na\.|\na\s)', q_block, re.DOTALL)
-            if not match:
-                continue
-            question_number = match.group(1).strip()
-            question_text = match.group(2).strip()
 
-            options = {}
-            option_matches = re.findall(r'([a-dA-D])[\).]?\s+(.*?)(?=\n[a-dA-D][\).]?\s+|$)', q_block, re.DOTALL)
-            for opt in option_matches:
-                options[opt[0].lower()] = opt[1].strip()
+            # Split the text based on 'ANSWER:' to isolate each MCQ
+            question_blocks = re.split(r'ANSWER:', full_text)
+            for i in range(len(question_blocks) - 1):
+                block = question_blocks[i]
+                answer = question_blocks[i + 1].strip().split()[0].upper()
 
-            raw_mcqs.append({
-                'question_number': question_number,
-                'question_text': question_text,
-                'options': options,
-                'correct_answer': None,
-                'justification': ""
-            })
-
-        if GEMINI_API_KEY and raw_mcqs:
-            return enhance_mcq_extraction(full_text, raw_mcqs)
-        else:
-            return raw_mcqs
-
+                # Extract question number and text
+                q_lines = block.strip().split("\n")
+                question_text = ""
+                options = {}
+                for line in q_lines:
+                    if re.match(r'^\s*[A-Da-d][\).]?\s+', line):
+                        option_match = re.match(r'^\s*([A-Da-d])[\).]?\s+(.*)', line.strip())
+                        if option_match:
+                            options[option_match.group(1).upper()] = option_match.group(2).strip()
+                    else:
+                        question_text += " " + line.strip()
+                question_text = question_text.strip()
+                q_number = len(mcqs) + 1
+                mcqs.append({
+                    'question_number': str(q_number),
+                    'question_text': question_text,
+                    'options': options,
+                    'correct_answer': answer,
+                    'justification': ""
+                })
+        return mcqs
     except Exception as e:
         print(f"Error extracting MCQs: {e}")
         return []
