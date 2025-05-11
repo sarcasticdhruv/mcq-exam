@@ -89,29 +89,6 @@
     <div class="container">
         <h1 class="title">MCQ Exam Preparation</h1>
         
-        <!-- API Configuration Box -->
-        <div class="api-box">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h2>Gemini API Configuration</h2>
-                {% if api_configured %}
-                <span class="badge bg-success status-badge">API Configured</span>
-                {% else %}
-                <span class="badge bg-warning status-badge">API Not Configured</span>
-                {% endif %}
-            </div>
-            
-            <p>Configure the Google Gemini API to enhance PDF extraction quality. With Gemini integration, the app can better understand complex question formats and improve extraction accuracy.</p>
-            
-            <form action="/configure_api" method="post" class="mt-3">
-                <div class="mb-3">
-                    <label for="api_key" class="form-label">Google Gemini API Key</label>
-                    <input type="password" class="form-control" id="api_key" name="api_key" placeholder="Enter your Gemini API key" required>
-                    <div class="form-text">Get your API key from <a href="https://ai.google.dev/" target="_blank">Google AI Studio</a>.</div>
-                </div>
-                <button type="submit" class="btn btn-success">Configure API</button>
-            </form>
-        </div>
-        
         <!-- PDF Upload Box -->
         <div class="upload-box">
             <h2>Upload MCQ PDF</h2>
@@ -122,7 +99,7 @@
                 </div>
                 <div class="mb-3">
                     <label for="pdf_file" class="form-label">Select MCQ PDF File</label>
-                    <input class="form-control" type="file" id="pdf_file" name="pdf_file" accept=".pdf" required>
+                    <input class="form-control" type="file" id="file" name="file" accept=".txt" required>
                     <div class="form-text">Upload a PDF containing multiple-choice questions.</div>
                 </div>
                 <button type="submit" class="btn btn-primary">Upload and Process</button>
