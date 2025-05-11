@@ -41,7 +41,7 @@ def extract_mcqs_from_text_file(file_path):
 
             if question_text and options and correct_answer:
                 # Extract question number
-                match = re.search(r'(\d+)\.', question_text)
+                match = re.search(r'^\s*(\d+)\.', question_text)  # Modified regex here
                 question_number = match.group(1) if match else None
                 
                 # Clean the question text
