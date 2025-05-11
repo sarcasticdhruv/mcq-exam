@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session
 import os
 import re
 import uuid
+import random  # Import the random module
 
 app = Flask(__name__)
 app.secret_key = 'mcq_exam_prep_key'
@@ -41,7 +42,7 @@ def extract_mcqs_from_text_file(file_path):
 
             if question_text and options and correct_answer:
                 # Extract question number
-                match = re.search(r'^\s*(\d+)\.', question_text)  # Modified regex here
+                match = re.search(r'^\s*(\d+)\s*\.\s*', question_text)  # Even more robust regex
                 question_number = match.group(1) if match else None
                 
                 # Clean the question text
@@ -89,6 +90,9 @@ def upload_file():
 
         if not mcqs:
             return "No MCQs found in the uploaded text file. Please check the format.", 400
+
+        # Shuffle the questions
+        random.shuffle(mcqs)  # Shuffle the list of MCQs
 
         # Store the MCQs in our "database"
         exams_db[exam_id] = {
